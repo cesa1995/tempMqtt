@@ -1,6 +1,5 @@
 // LIBRERIAS DEFINIDAS-----------------------------------------------------
 #include <ESP8266WiFi.h>        // libreria ESP8266
-#include <ESP8266WebServer.h>   // libreria Server
 #include <RTClib.h>             // libreria RTC
 #include <Wire.h>               // libreria Protocolo de Comunicacion I2C
 #include <DHT.h>                // librería DHT
@@ -20,37 +19,9 @@ ESP8266WebServer server(80);
 #define Relay2 14 //D5
 #define Relay1 12 //D6 
 
-//  Orignalmente 
-//  Relay   1  2  3  4
-//  Pin     5  4  14 12
-//
-//  Con etiqueta invertida
-//  Relay   4  3  2  1
-//  Pin     5  4  14 12
-//
-//#define Relay5 13 //D7
-//#define Relay6 15 //D8
-
 #define BOTON 16 // DO
 const int  DHT_pin=10;//pin DHT // 13 D7
-/*
-#define D0  16 
-#define D1  5
-#define D2  4
-#define D3  0
-#define D4  2
-#define D5  14
-#define D6  12
-#define D7  13
-#define D8  15
-#define D9  3
-#define D10 1
-#define S2  9
-#define S3  10
-*/
-//-------------------------------------------------------------------------
 
-// CONSTANTES DEFINIDAD----------------------------------------------------
 RTC_DS1307 RTC;                        // para RTC
 #define ADD 0x50                       // DIRECCION DE LA MEMORIA I2C
 DHT dht(DHT_pin,DHT11,15);            // para DHT pin y tipo
