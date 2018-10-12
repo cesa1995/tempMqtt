@@ -3,15 +3,7 @@
 #include <RTClib.h>             // libreria RTC
 #include <Wire.h>               // libreria Protocolo de Comunicacion I2C
 #include <DHT.h>                // librería DHT
-//-------------------------------------------------------------------------
-String ID_DEFAUL   ="stiotca";
-String PASS_DEFAUL ="1234567";
-String ID_USER;
-String PASS_USER;
-String DATAC="";
-String DATAH="";
 
-ESP8266WebServer server(80);
 
 // CONTACTORES DEFINIDOS---------------------------------------------------
 #define Relay4 5  //D1
@@ -30,19 +22,10 @@ const int ADD_H=120;                   // posicion humedad 4 temp.
 //-------------------------------------------------------------------------
 // HORAS PROGRAMADAS ---------------------  // HH , MM, SS //  SOLO SE NECESITA 1
 int HoraActual[7];
-//int TON[3]; 
-//int TOFF[3];
-//int TINICIO[3]; 
-//int TFIN[3];
 int N_CONTAC;
 int SE_AN=0;
-//------------------------------------------------>
-//-------------------HUMEDAD--------------
-int HINICIO;
-int HFINAL;
-int ESTADOH=0;
-int AT ;
-int RH=0; 
+
+int HU=0; 
 int TP=0;
 int CH[4]= { 0 , 0 , 0 ,0}; // 4 relay
 //----------------------------------------
@@ -106,31 +89,15 @@ char CWIFI[40]; //variables para el nombre del wifi
 char diaWeek[][4]={"dom","lun","mar","mie","jue","vie","sab"};
 
 void setup() {
-MAC=WiFi.macAddress(); // ingresar a la variable mac la mac del dispositivo wifi
-NWIFI="TEMP="+MAC; // unir la variable mac mas el nombre tem
-NWIFI.toCharArray(CWIFI,NWIFI.length()+1); //transformar la variable nwifi a char y guardarla en cwifi
-delay(100); //--------------------esperar 0,10 segundos 
-//WiFi.softAP(CWIFI); // ------------ 
 Serial.begin(115200); // iniciar el monitor serial 
-//--- iniciar servidor en /config, /clave, /humedad, /informacion
-server.on("/config", CONFIG); 
-server.on("/clave", CLAVE);
-//server.on("/humedad", HUMEDAD);
-server.on("/info", INFORMACION);
-server.begin();
 Serial.println(" "); 
-Serial.println("Webserver iniciado...");
-// fin de la cofiguracion del servidor
 Wire.begin(0,2); // SDA 0 , CLK 2  D3 D4 iniciar comunicacion I2C
 delay(100);
 RTC.begin(); // inicia RTC (reloj de tiempo real)
 delay(500);
 Serial.println("CONFIGURACION INICIAL DE LOS TIEMPOS"); 
 ABRIR_TIEMPOS();//--------configuracion inicial de tiempos leer la memoria eeprom y ingresarlo a las variables
-Serial.println("CLAVE DE USUARIO"); 
-LEER_CLAVE(ADD,ADD_CLAVE);
 delay(100);
-//ABRIR_HUMEDAD(ADD,ADD_H);
 delay(100);
 TAux_Max_m=Conv_min(TAux_Max);
 TAux_Min_m=Conv_min(TAux_Min);
@@ -148,56 +115,50 @@ dht.begin(); //inicia DHT22
 }
 
 void loop(){
-  
-boton=digitalRead(BOTON);
-while(boton==0){ // colocar en 0
-if(VALC==0){
-delay(100); //--------------------
-WiFi.softAP(CWIFI); //---------------------------------------- Activa la red WIFI
-VALC=1;
-VALF=0;
-}
-ON_OFF_RELAY(Relay1,0);
-ON_OFF_RELAY(Relay2,0);
-ON_OFF_RELAY(Relay3,0);
-ON_OFF_RELAY(Relay4,0);
-server.handleClient();
-delay(2000);
-boton=digitalRead(BOTON);
-}
-
-if(VALF==0){
-delay(100); //-------------------------retardo
-WiFi.softAPdisconnect(CWIFI); //-------------------------------- Desactiva el AP 
-VALF=1;
-VALC=0;
-}
-
-update_timeANDdate();
-
-
-if(SE_AN!=HoraActual[2]){  
-RH=0;
-TP=0;
-    if(ESTADOH==1){
-    RH = dht.readHumidity(); 
-    TP = dht.readTemperature();
-    Serial.println(RH);
-    Serial.println(TP);
-    }
-    else if (ESTADOH==0){
-    delay(10);
+  boton=digitalRead(BOTON);
+  while(boton==0){ // colocar en 0
+    if(VALC==0){
+        delay(100); //--------------------
+        
+        VALC=1;
+        VALF=0;
+      }
+      ON_OFF_RELAY(Relay1,0);
+      ON_OFF_RELAY(Relay2,0);
+      ON_OFF_RELAY(Relay3,0);
+      ON_OFF_RELAY(Relay4,0);
+      server.handleClient();
+      delay(2000);
+      boton=digitalRead(BOTON);
     }
 
- 
-Serial.print(HoraActual[0]);Serial.print(" : ");Serial.print(HoraActual[1]);Serial.print(" : ");Serial.print(HoraActual[2]);Serial.print("  ");Serial.println(diaWeek[HoraActual[3]]);
-HoraActual_m=Conv_min(HoraActual);
-Temp_Relay(HoraActual_m, TIME1[0], TIME1[1], TIME1[2], TIME1[3], TAux_Max_m, TAux_Min_m, Relay1, HINICIO, HFINAL /*,RH, CH[0]*/);
-Temp_Relay(HoraActual_m, TIME2[0], TIME2[1], TIME2[2], TIME2[3], TAux_Max_m, TAux_Min_m, Relay2, HINICIO, HFINAL /*,RH, CH[1]*/);
-Temp_Relay(HoraActual_m, TIME3[0], TIME3[1], TIME3[2], TIME3[3], TAux_Max_m, TAux_Min_m, Relay3, HINICIO, HFINAL /*,RH, CH[2]*/);
-Temp_Relay(HoraActual_m, TIME4[0], TIME4[1], TIME4[2], TIME4[3], TAux_Max_m, TAux_Min_m, Relay4, HINICIO, HFINAL /*,RH, CH[3]*/);
-SE_AN=HoraActual[2];
-}
+  if(VALF==0){
+    delay(100); //-------------------------retardo
+    WiFi.softAPdisconnect(CWIFI); //-------------------------------- Desactiva el AP 
+    VALF=1;
+    VALC=0;
+  }
+
+  update_timeANDdate();
+
+
+  if(SE_AN!=HoraActual[2]){  
+   HU=0;
+   TP=0;
+   HU = dht.readHumidity(); 
+   TP = dht.readTemperature();
+   Serial.println(HU);
+   Serial.println(TP);
+     
+   Serial.print(HoraActual[0]);Serial.print(" : ");Serial.print(HoraActual[1]);Serial.print(" : ");Serial.print(HoraActual[2]);Serial.print("  ");Serial.println(diaWeek[HoraActual[3]]);
+    
+   HoraActual_m=Conv_min(HoraActual);
+   Temp_Relay(HoraActual_m, TIME1[0], TIME1[1], TIME1[2], TIME1[3], TAux_Max_m, TAux_Min_m, Relay1, HINICIO, HFINAL /*,RH, CH[0]*/);
+   Temp_Relay(HoraActual_m, TIME2[0], TIME2[1], TIME2[2], TIME2[3], TAux_Max_m, TAux_Min_m, Relay2, HINICIO, HFINAL /*,RH, CH[1]*/);
+   Temp_Relay(HoraActual_m, TIME3[0], TIME3[1], TIME3[2], TIME3[3], TAux_Max_m, TAux_Min_m, Relay3, HINICIO, HFINAL /*,RH, CH[2]*/);
+   Temp_Relay(HoraActual_m, TIME4[0], TIME4[1], TIME4[2], TIME4[3], TAux_Max_m, TAux_Min_m, Relay4, HINICIO, HFINAL /*,RH, CH[3]*/);
+   SE_AN=HoraActual[2];
+  }
 } // end loop
 
 //---------------------------------------------------------------------------------
@@ -206,14 +167,14 @@ SE_AN=HoraActual[2];
 //---------------------------------------------------------------------------------
 
 void update_timeANDdate(){
-DateTime now = RTC.now();
-HoraActual[0]=now.hour();
-HoraActual[1]=now.minute();
-HoraActual[2]=now.second();
-HoraActual[3]=now.dayOfTheWeek();
-HoraActual[4]=now.day();
-HoraActual[5]=now.month();
-HoraActual[6]=now.year();
+  DateTime now = RTC.now();
+  HoraActual[0]=now.hour();
+  HoraActual[1]=now.minute();
+  HoraActual[2]=now.second();
+  HoraActual[3]=now.dayOfTheWeek();
+  HoraActual[4]=now.day();
+  HoraActual[5]=now.month();
+  HoraActual[6]=now.year();
 }
 
 //---------------------------FUNCION PARA ABRIR LOS TIEMPOS GUARDADOS-------------- 
@@ -600,101 +561,6 @@ int Comp_GuardarTiempos(String ID, String PASS){
           return 0; 
          }
 }
-//----------------------------------------------------------------------------------------------------
-  String arregla_simbolos(String a){ //cuando pasamos los datos del formulario mediante modo GET los caracteres especiales son reemplazados por codigo UTF-8, esta función reemplaza todos los codigos utf de caracteres especiales por el caracter especial correspondiente, o sea si encuentra un %23 en el string lo reemplazará por un #. 
-     a.replace("%C3%A1","á");
-     a.replace("%C3%A9","é");
-     a.replace("%C3%A","í");
-     a.replace("%C3%B3","ó");
-     a.replace("%C3%BA","ú");
-     a.replace("%21","!");
-     a.replace("%23","#");
-     a.replace("%24","$");
-     a.replace("%25","%");
-     a.replace("%26","&");
-     a.replace("%2F","/");
-     a.replace("%28","(");
-     a.replace("%29",")");
-     a.replace("%3D","=");
-     a.replace("%3F","?");
-     a.replace("%27","'");
-     a.replace("%C2%BF","¿");
-     a.replace("%C2%A1","¡");
-     a.replace("%C3%B1","ñ");
-     a.replace("%C3%91","Ñ");
-     a.replace("+"," ");
-     a.replace("%2B","+");
-     a.replace("%22","\"");
-     return a;
-      }
-//---------------------------------------------------------------------------------
-//--------------------- GUARDAR NUEVA CLAVE DE USUARIO-----------------------------
-void CLAVE(){
-    String ID = server.arg("id");
-    String PASS = server.arg("pass");
-    String NEWID = server.arg("newid");
-    String NEWPASS = server.arg("newpass");
-    ID=arregla_simbolos(ID);
-    PASS=arregla_simbolos(PASS);
-    NEWID=arregla_simbolos(NEWID);
-    NEWPASS=arregla_simbolos(NEWPASS);
-  
-    if((ID==ID_DEFAUL && PASS==PASS_DEFAUL) || (ID==ID_USER && PASS==PASS_USER)){
-    Serial.println("Se Ingreso Una Clave Nueva");
-    Serial.println("Clave Ingresada");
-    Serial.println(ID);
-    Serial.println(PASS);
-    Serial.println("Nueva Clave");
-    Serial.println(NEWID);
-    Serial.println(NEWPASS); 
-    server.send ( 200,  "text/list", "ACEPTADO" );
-    GUARDAR_CLAVE(NEWID,NEWPASS,ADD,ADD_CLAVE); 
-    ID_USER="";
-    PASS_USER="";
-    LEER_CLAVE(ADD,ADD_CLAVE);
-    }
-    
-    else {
-    Serial.println("CLAVE INVALIDA");
-    Serial.println("ERROR Clave Ingresada");
-    Serial.println(ID);
-    Serial.println(PASS);
-    Serial.println("ERROR Nueva Clave");
-    Serial.println(NEWID);
-    Serial.println(NEWPASS); 
-    server.send ( 200,  "text/list", "DENEGADO" );
-    }
-}
-//---------------------------------------------------------------------------------
-//--------------------- GUARDAR CLAVE EEPROM---------------------------------------
-void GUARDAR_CLAVE(String id,String pass,int AdresM,int Inicio){
-  String Data=id+pass;
-  char DataArray[14];
-  Data.toCharArray(DataArray, Data.length()+1);  
-  WRITE_EEPROM(AdresM,Inicio,(byte *)DataArray,sizeof(DataArray) );
-  delay(100);
-}
-
-void LEER_CLAVE(int AdresM,unsigned int Inicio){
-byte aux;
-String ID_aux="";
-String PASS_aux="";
-  for (unsigned int i=Inicio;i<(Inicio+7);i++){
-   aux=READ_EEPROM_BIT(AdresM,i);
-   delay(10);
-   ID_aux=ID_aux+String((char)aux); 
-  }
-  for (unsigned int ii=Inicio+7;ii<(Inicio+14);ii++){
-   aux=READ_EEPROM_BIT(AdresM,ii);
-   delay(10);
-   PASS_aux=PASS_aux+String((char)aux); 
-  }
-  ID_USER=ID_aux;
-  PASS_USER=PASS_aux;
-  Serial.println(ID_USER);
-  Serial.println(PASS_USER);
-  
-}
 
 void ON_OFF_RELAY(int Numero, byte estado){
   digitalWrite(Numero,estado);
@@ -941,102 +807,6 @@ void INFORMACION(){
             
           return DATA;
 }
-
-//---------------------------------------------------------------------------------
-//--------------------- GUARDAR HUMEDAD-----------------------------
-/*void HUMEDAD(){  //esta función se dispara al presionar el botón "setear conexión de la página de configuración
-    int RECONFIG;
-    String getssid = server.arg("ssid");
-    String getpass = server.arg("pass");
-    String hon = server.arg("ht");
-    String ncontac = server.arg("ncontac");
-    getssid=arregla_simbolos(getssid);
-    getpass=arregla_simbolos(getpass);
-    RECONFIG=Comp_GuardarTiempos(getssid, getpass);
-
-    if(RECONFIG==1){
-      server.send ( 200,  "text/list", "HUMEDAD ACEPTADA" );
-      tiempo[0]=server.arg("hh").toInt();
-      tiempo[1]=server.arg("mm").toInt();
-      tiempo[2]=server.arg("ss").toInt();
-      humtem[1]=server.arg("hum").toInt();
-      N_CONTAC=ncontac.toInt();
-      N_CONTAC=((N_CONTAC-1)*24)+96;
-      Serial.print("n_contact");
-      Serial.println(N_CONTAC);
-      delay(100);
-      ABRIR_TIEMPOS();
-      delay(100);
-      GUARDAR_HUMEDAD(humtem,estadoh,ncontac,ADD,ADD_H);
-      delay(100);
-      ABRIR_HUMEDAD(ADD,ADD_H);  
-    }
-
-
-    if(RECONFIG==0){
-      server.send ( 180,  "text/list", "HUMEDAD DENEGADA" );
-      //server.send("CLAVE DENEGADA");
-    Serial.println("Denegada la Modificacion");  
-    }
-    
-}*/
-//----------------------------------------------------------------------------------------------
-//----------------------------------------------GUARDAR LOS VALORES DE HUMEDAD-------------------
-/*void GUARDAR_HUMEDAD(String humtem,String Estado,String n_cont,int AdresM,int Inicio){
-  
-  String Data="";
-  Data=Estado+n_cont+h_on+h_off;
-  char DataArray[6];
-  Data.toCharArray(DataArray, Data.length()+1);  
-  WRITE_EEPROM(AdresM,Inicio,(byte *)DataArray,sizeof(DataArray) );
-  delay(100);
-}*/
-//------------------------------------------------------------------------------------------------
-//----------------ABRIR HUMEDAD ------------------------------------------------------------------------
-/*void ABRIR_HUMEDAD(int AdresM,unsigned int Inicio){
-byte aux;
-String ESTADO_aux="";
-String CONT_aux="";
-String HINICIO_aux="";
-String HFINAL_aux="";
-int CONT;
-CH[0]= 0;
-CH[1]= 0;
-CH[2]= 0;
-CH[3]= 0;
-HINICIO=0;
-HFINAL=0;
-
-   aux=READ_EEPROM_BIT(AdresM,Inicio);
-   ESTADO_aux=ESTADO_aux+String((char)aux); 
-   ESTADOH=ESTADO_aux.toInt();
-
-if(ESTADOH==1){
-   aux=READ_EEPROM_BIT(AdresM,(Inicio+1));
-   CONT_aux=CONT_aux+String((char)aux); 
-   CONT=(CONT_aux.toInt())-1;
-   CH[CONT]=1;
-  for (unsigned int i=Inicio+2;i<(Inicio+4);i++){
-   aux=READ_EEPROM_BIT(AdresM,i);
-   HINICIO_aux=HINICIO_aux+String((char)aux); 
-  } 
-  for (unsigned int ii=Inicio+4;ii<(Inicio+6);ii++){
-   aux=READ_EEPROM_BIT(AdresM,ii);
-   HFINAL_aux=HFINAL_aux+String((char)aux); 
-  }
-  HINICIO=HINICIO_aux.toInt();
-  HFINAL=HFINAL_aux.toInt();
-}
-  Serial.println(ESTADOH);
-  Serial.print(CH[0]);  Serial.print(CH[1]);  Serial.print(CH[2]);  Serial.println(CH[3]);
-  Serial.println(HINICIO);
-  Serial.println(HFINAL);
-}*/
-//--------------------------------------------------------------------------------------------------------
-
-//----------------------FUNCION ON OFF RELAY----------------------------------------
-
-//----------------------------------------------------------------------------------
 
 // ----------------------------------------------------------FUNCION DE CONTROL PARA EL FUNCIONAMIENTO DE HON Y HOFF ---------------------
 /*void Act_Relay_Humedad(int HRon,int HRoff, int H, int Relay){
